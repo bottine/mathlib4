@@ -62,7 +62,7 @@ attribute [local ext] Functor.ext
 
 -- porting note: added `noncomputable` because code-gen does not support `Quiver.Path.rec`
 /-- Any prefunctor from `V` lifts to a functor from `paths V` -/
-noncomputable def lift {C} [Category C] (φ : V ⥤q C) : Paths V ⥤ C
+def lift {C} [Category C] (φ : V ⥤q C) : Paths V ⥤ C
     where
   obj := φ.obj
   map {X} {Y} f :=
