@@ -12,7 +12,8 @@ import Mathlib.CategoryTheory.Quotient
 /-!
 # Universal Groupoid
 
-This file defines the Universal Groupoid of a Groupoid along a function.
+This file defines the universal groupoid given by a pair consisting of a groupoid and a map whose
+domain is the object type of the groupoid.
 
 -/
 
@@ -20,9 +21,7 @@ namespace CategoryTheory
 namespace Groupoid
 namespace Universal
 
-universe u v u' v' u'' v''
-
-variable {V : Type u} [Groupoid V] {V' : Type u'} (σ : V → V')
+variable {V V' : Type _} [Groupoid V] (σ : V → V')
 
 scoped postfix:50 " * " => fun σ => Quiver.Push.of σ ⋙q Paths.of
 
@@ -47,8 +46,7 @@ def _root_.Quiver.Hom.rev {σ : V → V'} {X Y : Paths $ Quiver.Push σ} (f : X 
 @[simp]
 lemma Hom.push_rev {X Y : V} (f : X ⟶ Y) : (Hom.push σ f).rev = Hom.push σ (inv f) := rfl
 
-set_option quotPrecheck false in
-  scoped infixl:100 " † " => Hom.push
+scoped infixl:100 " † " => Hom.push
 
 /-- Two reduction steps possible: compose composable arrows, or drop identity arrows -/
 inductive red.atomic_step : HomRel (Paths (Quiver.Push σ))
@@ -78,8 +76,7 @@ lemma red.atomic_step.reverse : {X Y : Paths $ Quiver.Push σ} → (f g : X ⟶ 
     apply red.atomic_step.id X
 
 /-- The underlying vertices of the Universal Groupoid -/
-def _root_.CategoryTheory.Groupoid.UniversalGroupoid
-  {V : Type u} [Groupoid V] {V' : Type u'} (σ : V → V') := Quotient (red.atomic_step σ)
+def _root_.CategoryTheory.Groupoid.UniversalGroupoid := Quotient (red.atomic_step σ)
 
 instance : Category (UniversalGroupoid σ) := Quotient.category (red.atomic_step σ)
 
@@ -144,7 +141,7 @@ def extend : V ⥤ (UniversalGroupoid σ) where
 abbrev as (x : UniversalGroupoid σ) : V' := x.as
 
 lemma extend_eq : (extend σ).toPrefunctor =
-  ((Quiver.Push.of σ) ⋙q Paths.of) ⋙q (Quotient.functor $ red.atomic_step σ).toPrefunctor := rfl
+  (Quiver.Push.of σ ⋙q Paths.of) ⋙q (Quotient.functor $ red.atomic_step σ).toPrefunctor := rfl
 
 section ump
 
@@ -168,9 +165,8 @@ Quotient.lift _
 lemma lift_spec_obj : (lift σ θ τ₀ hτ₀).obj = τ₀ ∘ (as σ) := rfl
 
 lemma lift_spec_comp : extend σ ⋙ lift σ θ τ₀ hτ₀ = θ := by
-  rw [Functor.toPrefunctor_ext,←Functor.toPrefunctor_comp, extend_eq]
-  dsimp only [lift]
-  rw [Prefunctor.comp_assoc, Functor.toPrefunctor_comp, Quotient.lift_spec,
+  rw [Functor.toPrefunctor_ext,←Functor.toPrefunctor_comp, extend_eq, lift,
+      Prefunctor.comp_assoc, Functor.toPrefunctor_comp, Quotient.lift_spec,
       Prefunctor.comp_assoc, Paths.lift_spec, Quiver.Push.lift_comp]
 
 lemma lift_unique (Φ : UniversalGroupoid σ ⥤ V'')
@@ -184,252 +180,6 @@ lemma lift_unique (Φ : UniversalGroupoid σ ⥤ V'')
 
 end ump
 
-/-
-
-section reduced_words
-
-open Relation
-
-variables {X Y : Paths $ Quiver.Push σ} (p q r : X ⟶ Y)
-
-abbrev red.step_refl (p q : X ⟶ Y) : Prop := ReflGen (red.step σ) p q
-abbrev red (p q : X ⟶ Y) : Prop := ReflTransGen (red.step σ) p q
-abbrev red.symm (p q : X ⟶ Y) : Prop := Join (red σ) p q
-
-lemma red_step_iff :
-  red.atomic_step σ p q ↔
-  (∃ (x z y : V) (f : x ⟶ z) (g : z ⟶ y) (xX : σ x = X) (yY : σ y = Y),
-    q = (eq_to_hom xX.symm) ≫ (σ † (f ≫ g)) ≫ (eq_to_hom yY) ∧
-    p = (eq_to_hom xX.symm) ≫ ((σ †  f) ≫ (σ †  g)) ≫ (eq_to_hom yY)) ∨
-  (∃ (x : V) (xX : σ x = X) (XY : X = Y),
-    q = eq_to_hom XY ∧
-    p = (eq_to_hom xX.symm) ≫ ((σ *).map $ 𝟙 x).to_path ≫ (eq_to_hom $ xX.trans XY))  :=
-begin
-  split,
-  {
-    rintros (⟨x, z, y, f, g⟩|(x)),
-    { left, use [x,z,y,f,g,rfl,rfl],
-      dsimp [Quiver.Push.of, Quiver.hom.to_path],
-      simp only [Category.comp_id, Category.id_comp, eq_self_iff_true, true_and], refl, },
-    { right, use [x,rfl,rfl],
-      dsimp [Quiver.Push.of, Quiver.hom.to_path],
-      simp only [Category.comp_id, Category.id_comp, eq_self_iff_true, and_true], refl, }, },
-  { rintros (⟨x, z, y, f, g, rfl, rfl, rfl, rfl⟩|⟨x, rfl, rfl, rfl, rfl⟩),
-    { simp only [eq_to_hom_refl, Category.comp_id, Category.id_comp], constructor, },
-    { constructor, }, },
-end
-
-lemma red.atomic_step_length (h : red.atomic_step σ p q) :
-  p.length = q.length.succ := by { cases h; refl, }
-
-lemma red.step_length (h : red.step σ p q ) : p.length = q.length.succ :=
-begin
-  cases h,
-  simp only [Quiver.path.length_comp, Category_struct.comp, red.atomic_step_length σ _ _ h_h,
-             nat.succ_add],
-  refl,
-end
-
-lemma red.step_length_lt (h : red.step σ p q) : q.length < p.length := by
-{ rw red.step_length σ p q h, exact lt_add_one (Quiver.path.length q), }
-
-lemma red.step_not_nil (s t : X ⟶ X) : red.step σ s t → s ≠ Quiver.path.nil :=
-begin
-  rintro h, cases h, cases h_h;
-  { rintro h,
-    let := congr_arg (Quiver.path.length) h,
-    simpa [Category_struct.comp] using this, },
-end
-
-section diamond_helper
-
-open Quiver.path
-
-lemma red.step_diamond_comp_comp :
-∀ {a b : Paths $ Quiver.Push σ} {X Y Z : V} {X' Y' Z' : V}
-  {pre : a ⟶ σ X} {f : X ⟶ Y} {g : Y ⟶ Z} {suf : σ Z ⟶ b}
-  {pre' : a ⟶ σ X'} {f' : X' ⟶ Y'} {g' : Y' ⟶ Z'} {suf' : σ Z' ⟶ b},
-  pre ≫ ((σ † f) ≫ (σ † g)) ≫ suf = pre' ≫ ((σ † f') ≫ (σ † g')) ≫ suf'
-→ pre ≫ (σ † (f ≫ g)) ≫ suf = pre' ≫ (σ † (f' ≫ g')) ≫ suf' ∨
-  ∃ p, red.step σ (pre ≫ (σ † (f ≫ g)) ≫ suf) p ∧
-       red.step σ (pre' ≫ (σ † (f' ≫ g')) ≫ suf') p := sorry
-
-lemma red.step_diamond_comp_nil : ∀ {a b : Paths $ Quiver.Push σ} {X Y Z W : V}
-  {pre : a ⟶ σ X} {f : X ⟶ Y} {g : Y ⟶ Z} {suf : σ Z ⟶ b}
-  {pre' : a ⟶ σ W} {suf' : σ W ⟶ b},
-  pre ≫ ((σ † f) ≫ (σ † g)) ≫ suf = pre' ≫ (σ † 𝟙 W) ≫ suf'
-→ ∃ p, red.step σ (pre ≫ (σ † (f ≫ g)) ≫ suf) p ∧
-       red.step σ (pre' ≫ (𝟙 $ σ W) ≫ suf') p := sorry
-
-lemma red.step_diamond_nil_nil : ∀ {a b : Paths $ Quiver.Push σ} {W W' : V}
-  {pre : a ⟶ σ W} {suf : σ W ⟶ b}
-  {pre' : a ⟶ σ W'} {suf' : σ W' ⟶ b},
-  pre ≫ (σ † 𝟙 W) ≫ suf = pre' ≫ (σ † 𝟙 W') ≫ suf' →
-  pre ≫ (𝟙 $ σ W) ≫ suf = pre' ≫ (𝟙 $ σ W') ≫ suf' ∨
-  ∃ p, red.step σ (pre ≫ (𝟙 $ σ _) ≫ suf) p ∧
-       red.step σ (pre' ≫ (𝟙 $ σ _) ≫ suf') p :=
-begin
-  rintros a b W W' pre suf pre' suf',
-  induction' pre,
-end
-
-end diamond_helper
-
-lemma diamond : ∀ {X Y} (r p q : X ⟶ Y),
-  red.step σ r p → red.step σ r q → p = q ∨ ∃ s, red.step σ p s ∧ red.step σ q s :=
-begin
-  rintro X Y r p q ⟨ap,bp,prep,mp,mp',sufp,hp⟩ rq,
-  induction' rq with aq bq preq mq mq' sufq hq,
-  induction' hp,
-  { induction' hq,
-    { obtain e|⟨h,r⟩ := red.step_diamond_comp_comp σ induction_eq_4,
-      { left, exact e.symm, },
-      { right, exact ⟨h,r.symm⟩, }, },
-    { right, exact red.step_diamond_comp_nil σ induction_eq_4.symm, }, },
-  { induction' hq,
-    { right,
-      obtain ⟨h,l,r⟩:= red.step_diamond_comp_nil σ induction_eq_4,
-      exact ⟨h,r,l⟩, },
-    { obtain e|⟨h,r,l⟩ := red.step_diamond_nil_nil σ induction_eq_4,
-      { left, exact e.symm, },
-      { right, exact ⟨h,l,r⟩, }, }  },
-end
-
-lemma diamond' : red.step σ r p → red.step σ r q → ∃ s, red.step_refl σ p s ∧ red σ q s :=
-begin
-  rintro pq pr,
-  rcases diamond σ _ _ _ pq pr with (rfl|⟨s,qs,rs⟩),
-  { use p, split, constructor, constructor, },
-  { exact ⟨s,refl_gen.single qs,refl_trans_gen.single rs⟩, },
-end
-
-lemma church_rosser : red σ r p → red σ r q → ∃ s, red σ p s ∧ red σ q s :=
-begin
-  refine church_rosser _,
-  rintro p q r pq pr,
-  exact diamond' σ _ _ _ pq pr,
-end
-
-def is_reduced := ¬ ∃ (q : X ⟶ Y), red.step σ p q
-
-lemma red.equal_of_is_reduced : red σ p q → is_reduced σ p → p = q :=
-begin
-  rintro pq pred,
-  rcases pq.cases_head with (rfl|⟨r,pr,rq⟩),
-  { refl, },
-  { apply (pred ⟨r,pr⟩).elim, },
-end
-
--- maybe should be done using `wf.fix` ?
- lemma red.exists_is_reduced : ∀ (p : X ⟶ Y), ∃ (r : X ⟶ Y), (red σ p r ∧ is_reduced σ r)
-| p := if h : is_reduced σ p then ⟨p, by {apply refl_trans_gen.refl}, h⟩ else by
-  { dsimp [is_reduced] at h, push_neg at h,
-    obtain ⟨q,qp⟩ := h,
-    let : q.length < p.length := red.step_length_lt σ p q qp, -- hint for well-foundedness
-    obtain ⟨r, rq, rred⟩ := red.exists_is_reduced q,
-    refine ⟨r, _, rred⟩,
-    exact refl_trans_gen.trans (refl_trans_gen.single qp) rq, }
-using_well_founded
-{ dec_tac := `[assumption],
-  rel_tac := λ _ _, `[exact ⟨_, measure_wf (λ (f : X ⟶ Y), f.length)⟩] }
-
-lemma red.unique_reduced : red σ p q → red σ p r → is_reduced σ q → is_reduced σ r → q = r :=
-begin
-  rintros pq pr qred rred,
-  obtain ⟨s,qs,rs⟩ := church_rosser σ _ _ _ pq pr,
-  rcases qs.cases_head with (rfl|⟨t,qt,ts⟩);
-  rcases rs.cases_head with (rfl|⟨u,ru,us⟩),
-  { refl, },
-  { apply (rred ⟨u,ru⟩).elim, },
-  { apply (qred ⟨t,qt⟩).elim, },
-  { apply (qred ⟨t,qt⟩).elim, },
-end
-
-lemma red.symm_of_eqv_gen : eqv_gen (red.step σ) p q → red.symm  σ p q :=
-begin
-  rintro h,
-  have equiv : _root_.equivalence (@red.symm  _ _ _ σ X Y) :=
-    equivalence_join_refl_trans_gen (λ a b c, diamond' σ _ _ _),
-  have le : ∀ (f g : X ⟶ Y), red.step σ f g → red.symm  σ f g := λ f g h',
-    join_of_single reflexive_refl_trans_gen (refl_trans_gen.single h'),
-  let h' := eqv_gen.mono le h,
-  rw (equivalence.eqv_gen_eq equiv) at h',
-  exact h',
-end
-
-lemma red.eqv_gen : red σ p q → eqv_gen (red.step σ) p q :=
-begin
-  rintro h,
-  induction h with _ _ _ r ih,
-  { apply eqv_gen.refl p, },
-  { apply eqv_gen.trans, exact ih, apply eqv_gen.rel, exact r, },
-end
-
-lemma unique_reduced' : eqv_gen (red.step σ) p q → is_reduced σ p → is_reduced σ q → p = q :=
-begin
-  rintro h pred qred,
-  have h' : red.symm  σ p q := red.symm_of_eqv_gen σ p q h,
-  rcases h' with ⟨d,pd,qd⟩,
-  rw [red.equal_of_is_reduced σ _ _ pd pred, red.equal_of_is_reduced σ _ _ qd qred],
-end
-
-lemma unique_reduced {X Y : UniversalGroupoid σ} (p : X ⟶ Y) :
-  ∃! (f : X.as ⟶ Y.as), is_reduced σ f ∧ quot.mk _ f = p :=
-begin
-  apply quot.induction_on p,
-  rintro f, apply exists_unique_of_exists_of_unique,
-  { let g := (red.exists_is_reduced σ f).some,
-    obtain ⟨fg, gred⟩ := (red.exists_is_reduced σ f).some_spec,
-    refine ⟨g,gred,_⟩,
-    apply quot.eqv_gen_sound,
-    apply eqv_gen.symm,
-    apply red.eqv_gen,
-    exact fg, },
-  { rintros g h ⟨gred,geq⟩ ⟨hred,heq⟩,
-    have := quot.exact _ (geq.trans heq.symm),
-    exact unique_reduced' σ g h this gred hred, },
-end
-
-lemma push_arrow_red {x y : V} (f : x ⟶ y) :
-  (∃ q, red.step σ (σ † f) q) → (∃ h : x = y, f = eq_to_hom h) :=
-begin
-  rintro ⟨q,fq⟩,
-  induction' fq,
-  induction' h;
-  simp [Quiver.hom.to_path, Category_struct.comp, Quiver.path.comp] at induction_eq_4;
-  let := congr_arg Quiver.path.length induction_eq_4;
-  simp [Quiver.path.length_cons] at this,
-  { sorry, /- `this` is impossible -/ },
-  { sorry,/- the equality of length should force `f` to be nil-/}
-end
-
-lemma push_arrow_is_reduced {x y : V} (f : x ⟶ y) (hf : ¬ ∃ h : x = y, f = eq_to_hom h) :
-  is_reduced σ (σ † f) :=
-begin
-  rintro ⟨q,fq⟩,
-  let := red.step_length σ _ _ fq,
-  simp [Quiver.hom.to_path, Quiver.path.length, nat.succ_eq_one_add] at this,
-  let := Quiver.path.nil_of_length_zero _ this,
-
-  induction fq with a b pre p q suf rs,
-  rw red_step_iff at rs,
-  rcases rs with ⟨a,b,c,d,e,f,g,h,i⟩|⟨a,b,c,d,e⟩,
-  { sorry, },
-  { sorry, },
-end
-
-
-end reduced_words
-
-lemma of_very_faithful {x y z w : V} (p : x ⟶ y) (q : z ⟶ w)
-  (xz : (extend σ).obj x = (extend σ).obj z) (yw : (extend σ).obj y = (extend σ).obj w) :
-  (extend σ).map p ≫ (eq_to_hom yw) = (eq_to_hom xz) ≫ (extend σ).map q →
-  ∃ (h : x = y) (k : z = w) (l : x = y), p = eq_to_hom h ∧ q = eq_to_hom k :=
-begin
-  intro he,
-  by_contra, push_neg at h, sorry
-end
--/
 end Universal
 end Groupoid
 end CategoryTheory
