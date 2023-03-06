@@ -81,9 +81,8 @@ instance : Category (UniversalGroupoid σ) := Quotient.category (red.atomic_step
 lemma red.step.reverse : {X Y : Paths $ Quiver.Push σ} → (p q : X ⟶ Y) →
     red.step σ p q → red.step σ (p.reverse) (q.reverse)
   | A, B, _, _, .intro f _ _ g hr => by
-    convert Quotient.CompClosure.intro (g.rev) _ _ (f.rev) hr.reverse
-    · simp
-    · simp
+    convert Quotient.CompClosure.intro (g.rev) _ _ (f.rev) hr.reverse <;>
+    simp
 
 lemma Quot_mk_self_comp_reverse {X} : ∀ {Y : Paths $ Quiver.Push σ} (p : X ⟶ Y),
     Quot.mk (red.step' σ) (p ≫ p.rev) = Quot.mk (red.step' σ) (𝟙 X)
