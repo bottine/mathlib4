@@ -171,10 +171,8 @@ lemma lift_unique (Φ : UniversalGroupoid σ ⥤ V'')
     (Φ₀ : Φ.obj = τ₀ ∘ as σ) (Φc : extend σ ⋙ Φ = θ) : Φ = lift σ θ τ₀ hτ₀ := by
   apply Quotient.lift_unique
   apply Paths.lift_unique
-  apply Quiver.Push.lift_unique
-  · ext
-    simp [Φ₀]
-  · simpa only [Functor.toPrefunctor_ext, ←Functor.toPrefunctor_comp] using Φc
+  apply Quiver.Push.lift_unique <;>
+  aesop_cat
 
 end ump
 
