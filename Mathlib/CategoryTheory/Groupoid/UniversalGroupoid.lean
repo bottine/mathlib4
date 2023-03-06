@@ -145,6 +145,11 @@ section ump
 
 variable {V'' : Type _} [Groupoid V''] (θ : V ⥤ V'') (τ₀ : V' → V'') (hτ₀ : ∀ x, θ.obj x = τ₀ (σ x))
 
+attribute [aesop norm unfold] Quiver.Push.of
+attribute [aesop norm unfold] Quiver.Hom.toPath
+attribute [aesop norm unfold] Quiver.Push.lift
+attribute [aesop norm unfold] Paths.lift
+
 /--
 Any functor `θ` from `V` to a Groupoid `V''` with `θ.obj` factoring through `σ`
 defines a functor from `V'`.
@@ -153,8 +158,7 @@ noncomputable def lift : UniversalGroupoid σ ⥤ V'' :=
 Quotient.lift _
   ( Paths.lift $ Quiver.Push.lift σ θ.toPrefunctor τ₀ hτ₀ )
   ( fun _ _ _ _ h => by
-      induction h <;>
-      aesop_cat (add norm unfold [Quiver.Push.of, Quiver.Hom.toPath, Quiver.Push.lift, Paths.lift]))
+      induction h <;> aesop_cat)
 
 lemma lift_spec_obj : (lift σ θ τ₀ hτ₀).obj = τ₀ ∘ as σ := rfl
 
